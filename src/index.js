@@ -9,44 +9,44 @@ let debug_mode = true;
 let timeout = 5000;
 let err_count = 0;
 
-async function f(x) {
-    if (cache[x]) {
-        if (debug_mode) console.log("Using cached data for", x);
-        return cache[x];
+async function fetchFromSwapi(endpoint) {
+    if (cache[endpoint]) {
+        if (debug_mode) console.log("Using cached data for", endpoint);
+        return cache[endpoint];
     }
     
-    return new Promise((r, j) => {
-        let d = "";
-        const req = https.get(`https://swapi.dev/api/${x}`, { rejectUnauthorized: false }, (res) => {
+    return new Promise((resolve, reject) => {
+        let responseData = "";
+        const req = https.get(`https://swapi.dev/api/${endpoint}`, { rejectUnauthorized: false }, (res) => {
             if (res.statusCode >= 400) {
                 err_count++;
-                return j(new Error(`Request failed with status code ${res.statusCode}`));
+                return reject(new Error(`Request failed with status code ${res.statusCode}`));
             }
             
-            res.on("data", (chunk) => { d += chunk; });
+            res.on("data", (chunk) => { responseData += chunk; });
             res.on("end", () => {
                 try {
-                    const p = JSON.parse(d);
-                    cache[x] = p; // Cache the result
-                    r(p);
+                    const parsedData = JSON.parse(responseData);
+                    cache[endpoint] = parsedData; // Cache the result
+                    resolve(parsedData);
                     if (debug_mode) {
-                        console.log(`Successfully fetched data for ${x}`);
+                        console.log(`Successfully fetched data for ${endpoint}`);
                         console.log(`Cache size: ${Object.keys(cache).length}`);
                     }
-                } catch (e) {
+                } catch (error) {
                     err_count++;
-                    j(e);
+                    reject(error);
                 }
             });
-        }).on("error", (e) => {
+        }).on("error", (error) => {
             err_count++;
-            j(e);
+            reject(error);
         });
         
         req.setTimeout(timeout, () => {
             req.abort();
             err_count++;
-            j(new Error(`Request timeout for ${x}`));
+            reject(new Error(`Request timeout for ${endpoint}`));
         });
     });
 }
