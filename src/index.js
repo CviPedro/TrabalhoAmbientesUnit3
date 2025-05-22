@@ -9,12 +9,19 @@ let debug_mode = true;
 let timeout = 5000;
 let err_count = 0;
 
-async function fetchFromSwapi(endpoint) {
+function verifyIfItHasACatch(){
     if (cache[endpoint]) {
         if (debug_mode) console.log("Using cached data for", endpoint);
         return cache[endpoint];
     }
-    
+    return  false;
+}
+
+async function fetchFromSwapi(endpoint) {
+    const verifyCatch = verifyIfItHasACatch();   
+    if(verifyCatch){
+        return verifyCatch
+    } 
     return new Promise((resolve, reject) => {
         let responseData = "";
         const req = https.get(`https://swapi.dev/api/${endpoint}`, { rejectUnauthorized: false }, (res) => {
@@ -57,7 +64,7 @@ let total_size = 0;
 function printFirst3Starships(){
     for (let i = 0; i < 3; i++) {
         if (i < starship1.results.length) {
-            const starship = s1.results[i];
+            const starship = starship1.results[i];
             console.log(`\nStarship ${i+1}:`);
             console.log("Name:", starship.name);
             console.log("Model:", starship.model);
@@ -73,7 +80,6 @@ function printFirst3Starships(){
 }
 
 async function findPlanetPopulation(){
-      // Find planets with population > 1000000000 and diameter > 10000
       const planets = await fetchFromSwapi("planets/?page=1");
       total_size += JSON.stringify(planets).length;
       console.log("\nLarge populated planets:");
@@ -82,13 +88,19 @@ async function findPlanetPopulation(){
           if (planet.population !== "unknown" && parseInt(planet.population) > 1000000000 && 
               planet.diameter !== "unknown" && parseInt(planet.diameter) > 10000) {
               console.log(planet.name, "- Pop:", planet.population, "- Diameter:", planet.diameter, "- Climate:", planet.climate);
-              function planetAppearsInMovie(){
-              if (planet.films && planet.films.length > 0) {
-                  console.log(`  Appears in ${planet.films.length} films`);
-                }
+            const planetInFilm = planetAppearsInMovie();
+            if(planetInFilm){
+                return planetInFilm
+            }
             }
         }
-      }
+      
+}
+
+function planetAppearsInMovie(){
+    if (planet.films && planet.films.length > 0) {
+        console.log(`  Appears in ${planet.films.length} films`);
+    }
 }
 
 async function getFilmsAndSearchDate(){
@@ -136,7 +148,10 @@ async function person() {
         
         const first3Starship = printFirst3Starships();
         const planetPopulation = findPlanetPopulation();        
-        const PlanetInMovie = planetAppearsInMovie();
+        const planetInFilm = planetAppearsInMovie();
+        if(planetInFilm){
+                return planetInFilm
+        }       
         const filmsByRelease = getFilmsAndSearchDate();
         const vehicleAndDisplay = getVehicleAndDisplay();
         
@@ -250,4 +265,4 @@ server.listen(PORT, () => {
         console.log("Debug mode: ON");
         console.log("Timeout:", timeout, "ms");
     }
-}); 
+});
