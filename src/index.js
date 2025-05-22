@@ -20,7 +20,7 @@ function verifyIfItHasACatch(){
 async function fetchFromSwapi(endpoint) {
     const verifyCatch = verifyIfItHasACatch();   
     if(verifyCatch){
-        return verifyCatch
+        return verifyCatch;
     } 
     return new Promise((resolve, reject) => {
         let responseData = "";
@@ -61,17 +61,23 @@ let lastId = 1;
 let fetch_count = 0;
 let total_size = 0;
 
-function printFirst3Starships(){
-    for (let i = 0; i < 3; i++) {
-        if (i < starship1.results.length) {
-            const starship = starship1.results[i];
-            console.log(`\nStarship ${i+1}:`);
-            console.log("Name:", starship.name);
-            console.log("Model:", starship.model);
-            console.log("Manufacturer:", starship.manufacturer);
-            console.log("Cost:", starship.cost_in_credits !== "unknown" ? `${starship.cost_in_credits  } credits` : "unknown");
-            console.log("Speed:", starship.max_atmosphering_speed);
-            console.log("Hyperdrive Rating:", starship.hyperdrive_rating);
+function printStarship(starship, index) {
+    console.log(`\nStarship ${index+1}:`);
+    console.log("Name:", starship.name);
+    console.log("Model:", starship.model);
+    console.log("Manufacturer:", starship.manufacturer);
+    console.log("Cost:", starship.cost_in_credits !== "unknown" ? `${starship.cost_in_credits  } credits` : "unknown");
+    console.log("Speed:", starship.max_atmosphering_speed);
+    console.log("Hyperdrive Rating:", starship.hyperdrive_rating);
+}
+
+const starshipSize = 3;
+
+function printFirst3Starships(s1){
+    for (let i = 0; i < starshipSize; i++) {
+        const starship = s1.results[i];
+        if (i < starship.results.length) {
+            printStarship(starship, i);
             if (starship.pilots && starship.pilots.length > 0) {
                 console.log("Pilots:", starship.pilots.length);
             }
@@ -80,20 +86,20 @@ function printFirst3Starships(){
 }
 
 async function findPlanetPopulation(){
-      const planets = await fetchFromSwapi("planets/?page=1");
-      total_size += JSON.stringify(planets).length;
-      console.log("\nLarge populated planets:");
-      for (let i = 0; i < planets.results.length; i++) {
-          const planet = planet.results[i];
-          if (planet.population !== "unknown" && parseInt(planet.population) > 1000000000 && 
+    const planets = await fetchFromSwapi("planets/?page=1");
+    total_size += JSON.stringify(planets).length;
+    console.log("\nLarge populated planets:");
+    for (let i = 0; i < planets.results.length; i++) {
+        const planet = planet.results[i];
+        if (planet.population !== "unknown" && parseInt(planet.population) > 1000000000 && 
               planet.diameter !== "unknown" && parseInt(planet.diameter) > 10000) {
-              console.log(planet.name, "- Pop:", planet.population, "- Diameter:", planet.diameter, "- Climate:", planet.climate);
+            console.log(planet.name, "- Pop:", planet.population, "- Diameter:", planet.diameter, "- Climate:", planet.climate);
             const planetInFilm = planetAppearsInMovie();
             if(planetInFilm){
-                return planetInFilm
-            }
+                return planetInFilm;
             }
         }
+    }
       
 }
 
@@ -104,12 +110,12 @@ function planetAppearsInMovie(){
 }
 
 async function getFilmsAndSearchDate(){
-      const films = await fetchFromSwapi("films/");
-      total_size += JSON.stringify(films).length;
-      const filmList = films.results;
-      filmList.sort((film1, film2) => {
-          return new Date(film1.release_date) - new Date(film2.release_date);
-      });
+    const films = await fetchFromSwapi("films/");
+    total_size += JSON.stringify(films).length;
+    const filmList = films.results;
+    filmList.sort((film1, film2) => {
+        return new Date(film1.release_date) - new Date(film2.release_date);
+    });
 }
 
 async function getVehicleAndDisplay(){
@@ -150,7 +156,7 @@ async function person() {
         const planetPopulation = findPlanetPopulation();        
         const planetInFilm = planetAppearsInMovie();
         if(planetInFilm){
-                return planetInFilm
+            return planetInFilm;
         }       
         const filmsByRelease = getFilmsAndSearchDate();
         const vehicleAndDisplay = getVehicleAndDisplay();
