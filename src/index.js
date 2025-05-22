@@ -152,7 +152,7 @@ async function person() {
         total_size += JSON.stringify(s1).length;
         console.log("\nTotal Starships:", s1.count);
         
-        const first3Starship = printFirst3Starships();
+        const first3Starship = printFirst3Starships(s1);
         const planetPopulation = findPlanetPopulation();        
         const planetInFilm = planetAppearsInMovie();
         if(planetInFilm){
