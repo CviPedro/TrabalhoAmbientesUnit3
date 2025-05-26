@@ -1,6 +1,6 @@
 // StarWars API Code
 // This code intentionally violates clean code principles for refactoring practice
-
+/* global process */
 const http = require("http");
 const https = require("https");
 
@@ -172,6 +172,7 @@ async function getFilmsAndSearchDate() {
 }
 
 const MAX_VEHICLE_ID_TO_FETCH = 4; // Define o número máximo de veículos a serem buscados
+
 async function getVehicleAndDisplay() {
     if (lastId <= MAX_VEHICLE_ID_TO_FETCH) {
         const vehicle = await fetchFromSwapi(`vehicles/${lastId}`);
@@ -186,7 +187,9 @@ async function getVehicleAndDisplay() {
         console.log("Passengers:", vehicle.passengers);
         lastId++;
     }
+
 }
+
 async function person() {
     try {
         if (debug_mode) console.log("Starting data fetch...");
@@ -207,6 +210,7 @@ async function person() {
         err_count++;
     }
 }
+
 async function fetchAndDisplayPerson() {
     const person1 = await fetchFromSwapi(`people/${lastId}`);
     total_size += JSON.stringify(person1).length;
@@ -215,10 +219,12 @@ async function fetchAndDisplayPerson() {
     console.log("Height:", person1.height);
     console.log("Mass:", person1.mass);
     console.log("Birthday:", person1.birth_year);
+
     if (person1.films && person1.films.length > 0) {
         console.log("Appears in", person1.films.length, "films");
     }
 }
+
 async function fetchAndDisplayStarships() {
     const s1 = await fetchFromSwapi("starships/?page=1");
     total_size += JSON.stringify(s1).length;
@@ -226,12 +232,14 @@ async function fetchAndDisplayStarships() {
     console.log("\nTotal Starships:", s1.count);
     printFirst3Starships(s1);
 }
+
 async function fetchAndDisplayPlanet() {
     const planetInFilm = await findPlanetPopulation();
     if (planetInFilm) {
         console.log("Planet found appearing in film:", planetInFilm.name);
     }
 }
+
 async function fetchAndDisplayFilms() {
     const filmList = await getFilmsAndSearchDate();
 
@@ -245,6 +253,7 @@ async function fetchAndDisplayFilms() {
         console.log(`   Planets: ${film.planets.length}`);
     }
 }
+
 function displayDebugStats() {
     console.log("\nStats:");
     console.log("API Calls:", fetch_count);
@@ -260,18 +269,22 @@ if (debug_mode) {
     console.log("Total Data Size:", total_size || 0, "bytes");
     console.log("Error Count:", err_count || 0);
 }
+
 // Process command line arguments com validação
 const COMMAND_LINE_ARG_START_INDEX = 2; // Índice onde os argumentos de linha de comando úteis começam
 const FLAG_NO_DEBUG = "--no-debug";
 const FLAG_TIMEOUT = "--timeout";
 const RADIX_DECIMAL = 10; //Base numérica para parseInt (decimal)
 const MIN_TIMEOUT_VALUE = 0; // Valor mínimo permitido para o timeout (maior que 0)
+
 const args = process.argv.slice(COMMAND_LINE_ARG_START_INDEX);
+
 if (args.includes(FLAG_NO_DEBUG)) {
     debug_mode = false;
 }
 if (args.includes(FLAG_TIMEOUT)) {
     const index = args.indexOf(FLAG_TIMEOUT);
+
     // Verifica se há um valor após a flag --timeout
     if (index < args.length - 1) {
         const timeoutValueStr = args[index + 1];  // Pega a string do valor
@@ -285,9 +298,11 @@ if (args.includes(FLAG_TIMEOUT)) {
         }
     }
 }
+        
 const statusCodeOk = 200;
 const internalError = 500;
 const errorNotFound = 404;
+
 const server = http.createServer(async (req, res) => {
     if (req.url === "/" || req.url === "/index.html") {
         res.writeHead(statusCodeOk, { "Content-Type": "text/html" });
