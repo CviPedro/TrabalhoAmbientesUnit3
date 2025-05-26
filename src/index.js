@@ -19,58 +19,58 @@ function isCached(endpoint){
 
 async function fetchFromSwapi(endpoint) {
 
-let debug_mode = true;
-let timeout = 5000;
-let err_count = 0;
-function isCached(endpoint) {
-    if (cache[endpoint]) {
-        if (debug_mode) console.log(`Using cached data for ${endpoint}`);
-        return cache[endpoint];
+    const debug_mode = true;
+    const timeout = 5000;
+    let err_count = 0;
+    function isCached(endpoint) {
+        if (cache[endpoint]) {
+            if (debug_mode) console.log(`Using cached data for ${endpoint}`);
+            return cache[endpoint];
+        }
+        return null;
     }
-    return null;
-}
-async function fetchFromSwapi(endpoint) {
-    const cached = isCached(endpoint);
-    const codeError = 400;
-    if (cached) return cached;
-    const url = `https://swapi.dev/api/${endpoint}`;
-    return new Promise((resolve, reject) => {
-        const req = https.get(url, (res) => {
-            let data = '';
-            if (res.statusCodeOk >= codeError) {
-                err_count++;
-                return reject(new Error(`Request failed with status code ${res.statusCodeOk}`));
-            }
-            res.on('data', chunk => data += chunk);
-            res.on('end', () => {
-                try {
-                    const parsed = JSON.parse(data);
-                    cache[endpoint] = parsed;
-
-                    if (debug_mode) {
-                        console.log(`Fetched and cached: ${endpoint}`);
-                        console.log(`Cache size: ${Object.keys(cache).length}`);
-                    }
-
-                    resolve(parsed);
-                } catch (err) {
+    async function fetchFromSwapi(endpoint) {
+        const cached = isCached(endpoint);
+        const codeError = 400;
+        if (cached) return cached;
+        const url = `https://swapi.dev/api/${endpoint}`;
+        return new Promise((resolve, reject) => {
+            const req = https.get(url, (res) => {
+                let data = "";
+                if (res.statusCodeOk >= codeError) {
                     err_count++;
-                    reject(new Error(`JSON parse error for ${endpoint}: ${err.message}`));
+                    return reject(new Error(`Request failed with status code ${res.statusCodeOk}`));
                 }
+                res.on("data", chunk => data += chunk);
+                res.on("end", () => {
+                    try {
+                        const parsed = JSON.parse(data);
+                        cache[endpoint] = parsed;
+
+                        if (debug_mode) {
+                            console.log(`Fetched and cached: ${endpoint}`);
+                            console.log(`Cache size: ${Object.keys(cache).length}`);
+                        }
+
+                        resolve(parsed);
+                    } catch (err) {
+                        err_count++;
+                        reject(new Error(`JSON parse error for ${endpoint}: ${err.message}`));
+                    }
+                });
+            });
+            req.on("error", (err) => {
+                err_count++;
+                reject(new Error(`Network error for ${endpoint}: ${err.message}`));
+            });
+
+            req.setTimeout(timeout, () => {
+                req.abort();
+                err_count++;
+                reject(new Error(`Request timeout after ${timeout}ms for ${endpoint}`));
             });
         });
-        req.on('error', (err) => {
-            err_count++;
-            reject(new Error(`Network error for ${endpoint}: ${err.message}`));
-        });
-
-        req.setTimeout(timeout, () => {
-            req.abort();
-            err_count++;
-            reject(new Error(`Request timeout after ${timeout}ms for ${endpoint}`));
-        });
-    });
-}}
+    }}
 
 // Global variables for tracking state
 let lastId = 1;
@@ -205,40 +205,40 @@ async function person() {
     }
 }
         
-        // Print stats
-        if (debug_mode) {
-            console.log("\nStats:");
-            console.log("API Calls:", fetch_count || 0);
-            console.log("Cache Size:", cache ? Object.keys(cache).length : 0);
-            console.log("Total Data Size:", total_size || 0, "bytes");
-            console.log("Error Count:", err_count || 0);
-        }
+// Print stats
+if (debug_mode) {
+    console.log("\nStats:");
+    console.log("API Calls:", fetch_count || 0);
+    console.log("Cache Size:", cache ? Object.keys(cache).length : 0);
+    console.log("Total Data Size:", total_size || 0, "bytes");
+    console.log("Error Count:", err_count || 0);
+}
         
-        // Process command line arguments com validação
-        const args = process.argv.slice(2);
-        if (args.includes("--no-debug")) {
-            debug_mode = false;
+// Process command line arguments com validação
+const args = process.argv.slice(2);
+if (args.includes("--no-debug")) {
+    debug_mode = false;
+}
+if (args.includes("--timeout")) {
+    const index = args.indexOf("--timeout");
+    if (index < args.length - 1) {
+        const val = parseInt(args[index + 1], 10);
+        if (!isNaN(val) && val > 0) {
+            timeout = val;
+        } else {
+            console.warn("Invalid timeout value; using default.");
         }
-        if (args.includes("--timeout")) {
-            const index = args.indexOf("--timeout");
-            if (index < args.length - 1) {
-                const val = parseInt(args[index + 1], 10);
-                if (!isNaN(val) && val > 0) {
-                    timeout = val;
-                } else {
-                    console.warn("Invalid timeout value; using default.");
-                }
-            }
-        }
+    }
+}
         
-        const statusCodeOk = 200;
-        const internalError = 500;
-        const errorNotFound = 404;
+const statusCodeOk = 200;
+const internalError = 500;
+const errorNotFound = 404;
 
-        const server = http.createServer(async (req, res) => {
-            if (req.url === "/" || req.url === "/index.html") {
-                res.writeHead(statusCodeOk, { "Content-Type": "text/html" });
-                res.end(`
+const server = http.createServer(async (req, res) => {
+    if (req.url === "/" || req.url === "/index.html") {
+        res.writeHead(statusCodeOk, { "Content-Type": "text/html" });
+        res.end(`
                     <!DOCTYPE html>
                     <html>
                         <head>
@@ -277,36 +277,36 @@ async function person() {
                         </body>
                     </html>
                 `);
-            } else if (req.url === "/api") {
-                try {
-                    const result = await person();
-                    res.writeHead(statusCodeOk, { "Content-Type": "application/json" });
-                    res.end(JSON.stringify({ message: "Success", result }));
-                } catch (err) {
-                    res.writeHead(internalError, { "Content-Type": "application/json" });
-                    res.end(JSON.stringify({ error: err.message }));
-                }
-            } else if (req.url === "/stats") {
-                res.writeHead(statusCodeOk, { "Content-Type": "application/json" });
-                res.end(JSON.stringify({
-                    api_calls: fetch_count,
-                    cache_size: Object.keys(cache).length,
-                    data_size: total_size,
-                    errors: err_count,
-                    debug: debug_mode,
-                    timeout: timeout
-                }));
-            } else {
-                res.writeHead(errorNotFound, { "Content-Type": "text/plain" });
-                res.end("Not Found");
-            }
-        });
+    } else if (req.url === "/api") {
+        try {
+            const result = await person();
+            res.writeHead(statusCodeOk, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ message: "Success", result }));
+        } catch (err) {
+            res.writeHead(internalError, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: err.message }));
+        }
+    } else if (req.url === "/stats") {
+        res.writeHead(statusCodeOk, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({
+            api_calls: fetch_count,
+            cache_size: Object.keys(cache).length,
+            data_size: total_size,
+            errors: err_count,
+            debug: debug_mode,
+            timeout: timeout
+        }));
+    } else {
+        res.writeHead(errorNotFound, { "Content-Type": "text/plain" });
+        res.end("Not Found");
+    }
+});
         
-        const PORT = process.env.PORT || 3000;
-        server.listen(PORT, () => {
-            console.log(`Server running at http://localhost:${PORT}/`);
-            if (debug_mode) {
-                console.log("Debug mode: ON");
-                console.log("Timeout:", timeout, "ms");
-            }
-        });
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+    console.log(`Server running at http://localhost:${PORT}/`);
+    if (debug_mode) {
+        console.log("Debug mode: ON");
+        console.log("Timeout:", timeout, "ms");
+    }
+});
