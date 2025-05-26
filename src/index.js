@@ -124,21 +124,43 @@ function planetAppearsInMovie(planet) {
 
 async function findPlanetPopulation() {
     const planets = await fetchFromSwapi("planets/?page=1");
-    const minimumPopulation = 1000000000;
-    const minimumDiameter = 10000;
+    const filteredPlanet = findLargePopulatedPlanet(planets.results);
     total_size += JSON.stringify(planets).length;
-    console.log("\nLarge populated planets:");
-    for (let i = 0; i < planets.results.length; i++) {
-        const planet = planets.results[i];
-        if (planet.population !== "unknown" && parseInt(planet.population) > minimumPopulation &&
-            planet.diameter !== "unknown" && parseInt(planet.diameter) > minimumDiameter) {
-            console.log(`${planet.name} - Pop: ${planet.population} - Diameter: ${planet.diameter} - Climate: ${planet.climate}`);
-            if (planetAppearsInMovie(planet)) {
-                return planet;
-            }
+
+    if (filteredPlanet) {
+        displayPlanetInfo(filteredPlanet);
+        if (planetAppearsInMovie(filteredPlanet)) {
+            return filteredPlanet;
         }
     }
     return null;
+}
+
+function findLargePopulatedPlanet(planets) {
+    const minimumPopulation = 1000000000;
+    const minimumDiameter = 10000;
+
+    for (let i = 0; i < planets.length; i++) {
+        const planet = planets[i];
+        if (planetMeetsCriteria(planet, minimumPopulation, minimumDiameter)) {
+            return planet;
+        }
+    }
+    return null;
+}
+
+function planetMeetsCriteria(planet, minPop, minDiameter) {
+    return planet.population !== "unknown" &&
+           parseInt(planet.population) > minPop &&
+           planet.diameter !== "unknown" &&
+           parseInt(planet.diameter) > minDiameter;
+}
+
+function displayPlanetInfo(planet) {
+    console.log("\nLarge populated planets:");
+    console.log(
+        `${planet.name} - Pop: ${planet.population} - Diameter: ${planet.diameter} - Climate: ${planet.climate}`
+    );
 }
 
 async function getFilmsAndSearchDate() {
@@ -150,7 +172,6 @@ async function getFilmsAndSearchDate() {
 }
 
 const MAX_VEHICLE_ID_TO_FETCH = 4; // Define o número máximo de veículos a serem buscados
-
 async function getVehicleAndDisplay() {
     if (lastId <= MAX_VEHICLE_ID_TO_FETCH) {
         const vehicle = await fetchFromSwapi(`vehicles/${lastId}`);
@@ -165,63 +186,72 @@ async function getVehicleAndDisplay() {
         console.log("Passengers:", vehicle.passengers);
         lastId++;
     }
-
 }
-
 async function person() {
     try {
         if (debug_mode) console.log("Starting data fetch...");
         fetch_count++;
 
-        const person1 = await fetchFromSwapi(`people/${lastId}`);
-        total_size += JSON.stringify(person1).length;
-        console.log("Character:", person1.name);
-        console.log("Height:", person1.height);
-        console.log("Mass:", person1.mass);
-        console.log("Birthday:", person1.birth_year);
-
-        if (person1.films && person1.films.length > 0) {
-            console.log("Appears in", person1.films.length, "films");
-        }
-
-        const s1 = await fetchFromSwapi("starships/?page=1");
-        total_size += JSON.stringify(s1).length;
-        console.log("\nTotal Starships:", s1.count);
-        printFirst3Starships(s1);
-
-        const planetInFilm = await findPlanetPopulation();
-        if (planetInFilm) {
-            console.log("Planet found appearing in film:", planetInFilm.name);
-        }
-
-        const filmList = await getFilmsAndSearchDate();
-
+        await fetchAndDisplayPerson();
+        await fetchAndDisplayStarships();
+        await fetchAndDisplayPlanet();
+        await fetchAndDisplayFilms();
         await getVehicleAndDisplay();
 
-        console.log("\nStar Wars Films in chronological order:");
-        for (let i = 0; i < filmList.length; i++) {
-            const film = filmList[i];
-            console.log(`${i + 1}. ${film.title} (${film.release_date})`);
-            console.log(`   Director: ${film.director}`);
-            console.log(`   Producer: ${film.producer}`);
-            console.log(`   Characters: ${film.characters.length}`);
-            console.log(`   Planets: ${film.planets.length}`);
+        if (debug_mode) {
+            displayDebugStats();
         }
 
-        if (debug_mode) {
-            console.log("\nStats:");
-            console.log("API Calls:", fetch_count);
-            console.log("Cache Size:", Object.keys(cache).length);
-            console.log("Total Data Size:", total_size, "bytes");
-            console.log("Error Count:", err_count);
-        }
-        
     } catch (e) {
         console.error("Error:", e.message);
         err_count++;
     }
 }
-        
+async function fetchAndDisplayPerson() {
+    const person1 = await fetchFromSwapi(`people/${lastId}`);
+    total_size += JSON.stringify(person1).length;
+
+    console.log("Character:", person1.name);
+    console.log("Height:", person1.height);
+    console.log("Mass:", person1.mass);
+    console.log("Birthday:", person1.birth_year);
+    if (person1.films && person1.films.length > 0) {
+        console.log("Appears in", person1.films.length, "films");
+    }
+}
+async function fetchAndDisplayStarships() {
+    const s1 = await fetchFromSwapi("starships/?page=1");
+    total_size += JSON.stringify(s1).length;
+
+    console.log("\nTotal Starships:", s1.count);
+    printFirst3Starships(s1);
+}
+async function fetchAndDisplayPlanet() {
+    const planetInFilm = await findPlanetPopulation();
+    if (planetInFilm) {
+        console.log("Planet found appearing in film:", planetInFilm.name);
+    }
+}
+async function fetchAndDisplayFilms() {
+    const filmList = await getFilmsAndSearchDate();
+
+    console.log("\nStar Wars Films in chronological order:");
+    for (let i = 0; i < filmList.length; i++) {
+        const film = filmList[i];
+        console.log(`${i + 1}. ${film.title} (${film.release_date})`);
+        console.log(`   Director: ${film.director}`);
+        console.log(`   Producer: ${film.producer}`);
+        console.log(`   Characters: ${film.characters.length}`);
+        console.log(`   Planets: ${film.planets.length}`);
+    }
+}
+function displayDebugStats() {
+    console.log("\nStats:");
+    console.log("API Calls:", fetch_count);
+    console.log("Cache Size:", Object.keys(cache).length);
+    console.log("Total Data Size:", total_size, "bytes");
+    console.log("Error Count:", err_count);
+}
 // Print stats
 if (debug_mode) {
     console.log("\nStats:");
@@ -230,22 +260,18 @@ if (debug_mode) {
     console.log("Total Data Size:", total_size || 0, "bytes");
     console.log("Error Count:", err_count || 0);
 }
-        
 // Process command line arguments com validação
 const COMMAND_LINE_ARG_START_INDEX = 2; // Índice onde os argumentos de linha de comando úteis começam
 const FLAG_NO_DEBUG = "--no-debug";
 const FLAG_TIMEOUT = "--timeout";
 const RADIX_DECIMAL = 10; //Base numérica para parseInt (decimal)
 const MIN_TIMEOUT_VALUE = 0; // Valor mínimo permitido para o timeout (maior que 0)
-
 const args = process.argv.slice(COMMAND_LINE_ARG_START_INDEX);
-
 if (args.includes(FLAG_NO_DEBUG)) {
     debug_mode = false;
 }
 if (args.includes(FLAG_TIMEOUT)) {
     const index = args.indexOf(FLAG_TIMEOUT);
-
     // Verifica se há um valor após a flag --timeout
     if (index < args.length - 1) {
         const timeoutValueStr = args[index + 1];  // Pega a string do valor
@@ -259,11 +285,9 @@ if (args.includes(FLAG_TIMEOUT)) {
         }
     }
 }
-        
 const statusCodeOk = 200;
 const internalError = 500;
 const errorNotFound = 404;
-
 const server = http.createServer(async (req, res) => {
     if (req.url === "/" || req.url === "/index.html") {
         res.writeHead(statusCodeOk, { "Content-Type": "text/html" });
@@ -273,11 +297,28 @@ const server = http.createServer(async (req, res) => {
                         <head>
                             <title>Star Wars API Demo</title>
                             <style>
-                                body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
-                                h1 { color: #FFE81F; background-color: #000; padding: 10px; }
-                                button { background-color: #FFE81F; border: none; padding: 10px 20px; cursor: pointer; }
-                                .footer { margin-top: 50px; font-size: 12px; color: #666; }
-                                pre { background: #f4f4f4; padding: 10px; border-radius: 5px; }
+                                body { font-family: Arial, sans-serif; 
+                                max-width: 800px; 
+                                margin: 0 auto; 
+                                padding: 20px; 
+                                }
+                                h1 { color: #FFE81F; 
+                                background-color: #000; 
+                                padding: 10px; 
+                                }
+                                button { background-color: #FFE81F; 
+                                border: none; 
+                                padding: 10px 20px; c
+                                ursor: pointer; 
+                                }
+                                .footer { margin-top: 50px; 
+                                font-size: 12px; 
+                                color: #666; 
+                                }
+                                pre { background: #f4f4f4; 
+                                padding: 10px; 
+                                border-radius: 5px; 
+                                }
                             </style>
                         </head>
                         <body>
@@ -288,23 +329,24 @@ const server = http.createServer(async (req, res) => {
                             <div id="results"></div>
                             <script>
                                 function fetchData() {
-                                    document.getElementById('results').innerHTML = '<p>Loading data...</p>';
-                                    fetch('/api')
-                                        .then(res => res.json())
-                                        .then(data => {
-                                            document.getElementById('results').innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
-                                        })
-                                        .catch(err => {
-                                            document.getElementById('results').innerHTML = '<p>Error: ' + err.message + '</p>';
-                                        });
-                                }
-                            </script>
-                            <div class="footer">
-                                <p>API calls: ${fetch_count} | Cache entries: ${Object.keys(cache).length} | Errors: ${err_count}</p>
-                                <pre>Debug mode: ${debug_mode ? "ON" : "OFF"} | Timeout: ${timeout}ms</pre>
-                            </div>
-                        </body>
-                    </html>
+    document.getElementById('results').innerHTML = '<p>Loading data...</p>';
+    
+    fetch('/api')
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('results').innerHTML = 
+                '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+        })
+        .catch(err => {
+            document.getElementById('results').innerHTML = 
+                '<p>Error: ' + err.message + '</p>';
+        });
+}
+</script>
+<div class="footer">
+<p>API calls: ${fetch_count} | Cache entries: ${Object.keys(cache).length} | Errors: ${err_count}</p>
+<pre>Debug mode: ${debug_mode ? "ON" : "OFF"} | Timeout: ${timeout}ms</pre>
+</div></body></html>
                 `);
     } else if (req.url === "/api") {
         try {
