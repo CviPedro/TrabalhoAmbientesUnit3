@@ -5,10 +5,7 @@ const http = require("http");
 const https = require("https");
 
 
-const cache = {};
-let debug_mode = true;
-let timeout = 5000;
-let err_count = 0;
+const cache = {}; let debug_mode = true; let timeout = 5000; let err_count = 0;
 
 function getFromCache(endpoint){
     if (cache[endpoint]) {
@@ -40,39 +37,48 @@ function storeInCache(endpoint, data) {
 }
 
 async function fetchFromSwapi(endpoint) {
+
     const cached = getFromCache(endpoint);
-    const codeError = 400;
-    
+
     if (cached) {
         return cached;
     }
-    
+
+    const data = await fetchFromApi(endpoint);
+    storeInCache(endpoint, data);
+    return data;
+}
+function fetchFromApi(endpoint) {
+    const codeError = 400;
     const url = `https://swapi.dev/api/${endpoint}`;
-    
+
     return new Promise((resolve, reject) => {
+        // eslint-disable-next-line consistent-return
         const req = https.get(url, (res) => {
             let data = "";
-            if (res.statusCodeOk >= codeError) {
+
+            if (res.statusCode >= codeError) {
                 err_count++;
-                return reject(new Error(`Request failed with status code ${res.statusCodeOk}`));
+                return reject(new Error(`Request failed with status code ${res.statusCode}`));
             }
+
             res.on("data", chunk => data += chunk);
+
             res.on("end", () => {
                 try {
                     const parsedData = JSON.parse(data);
-                    storeInCache(endpoint, parsedData);
-                    // cache[endpoint] = parsed;
-                    resolve(parsedData);
+
                     if (debug_mode) {
                         console.log(`Fetched and cached: ${endpoint}`);
                         console.log(`Cache size: ${Object.keys(cache).length}`);
                     }
+                    resolve(parsedData);
                 } catch (err) {
                     err_count++;
                     reject(new Error(`JSON parse error for ${endpoint}: ${err.message}`));
-                }
-            });
+                }});
         });
+
         req.on("error", (err) => {
             err_count++;
             reject(new Error(`Network error for ${endpoint}: ${err.message}`));
@@ -84,19 +90,15 @@ async function fetchFromSwapi(endpoint) {
             reject(new Error(`Request timeout after ${timeout}ms for ${endpoint}`));
         });
     });
-};
+}
 
 
 // Global variables for tracking state
-let lastId = 1;
-let fetch_count = 0;
-let total_size = 0;
+let lastId = 1; let fetch_count = 0; let total_size = 0;
 
 function printStarship(starship, index) {
-    console.log(`\nStarship ${index + 1}:`);
-    console.log("Name:", starship.name);
-    console.log("Model:", starship.model);
-    console.log("Manufacturer:", starship.manufacturer);
+    console.log(`\nStarship ${index + 1}:`); console.log("Name:", starship.name); 
+    console.log("Model:", starship.model); console.log("Manufacturer:", starship.manufacturer);
     console.log("Cost:", starship.cost_in_credits !== "unknown" ? `${starship.cost_in_credits} credits` : "unknown");
     console.log("Speed:", starship.max_atmosphering_speed);
     console.log("Hyperdrive Rating:", starship.hyperdrive_rating);
@@ -110,9 +112,7 @@ function printFirst3Starships(StarshipsList) {
         printStarship(starship, i);
         if (starship.pilots && starship.pilots.length > 0) {
             console.log("Pilots:", starship.pilots.length);
-        }
-    }
-}
+        }}}
 
 function planetAppearsInMovie(planet) {
     if (planet.films && planet.films.length > 0) {
@@ -129,20 +129,17 @@ async function findPlanetPopulation() {
 
     if (filteredPlanet) {
         displayPlanetInfo(filteredPlanet);
-        if (planetAppearsInMovie(filteredPlanet)) {
-            return filteredPlanet;
-        }
+        if (planetAppearsInMovie(filteredPlanet)) {return filteredPlanet;}
     }
     return null;
 }
 
 function findLargePopulatedPlanet(planets) {
-    const minimumPopulation = 1000000000;
-    const minimumDiameter = 10000;
+    const minPopulation = 1000000000; const minDiameter = 10000;
 
     for (let i = 0; i < planets.length; i++) {
         const planet = planets[i];
-        if (planetMeetsCriteria(planet, minimumPopulation, minimumDiameter)) {
+        if (planetMeetsCriteria(planet, minPopulation, minDiameter)) {
             return planet;
         }
     }
@@ -177,53 +174,40 @@ async function getVehicleAndDisplay() {
     if (lastId <= MAX_VEHICLE_ID_TO_FETCH) {
         const vehicle = await fetchFromSwapi(`vehicles/${lastId}`);
         total_size += JSON.stringify(vehicle).length;
-        console.log("\nFeatured Vehicle:");
-        console.log("Name:", vehicle.name);
-        console.log("Model:", vehicle.model);
-        console.log("Manufacturer:", vehicle.manufacturer);
+        console.log("\nFeatured Vehicle:"); console.log("Name:", vehicle.name);
+        console.log("Model:", vehicle.model); console.log("Manufacturer:", vehicle.manufacturer);
         console.log(`Cost: ${vehicle.cost_in_credits} credits`);
         console.log("Length:", vehicle.length);
-        console.log("Crew Required:", vehicle.crew);
-        console.log("Passengers:", vehicle.passengers);
+        console.log("Crew Required:", vehicle.crew); console.log("Passengers:", vehicle.passengers);
         lastId++;
-    }
-
-}
+    }}
 
 async function person() {
     try {
         if (debug_mode) console.log("Starting data fetch...");
         fetch_count++;
 
-        await fetchAndDisplayPerson();
-        await fetchAndDisplayStarships();
-        await fetchAndDisplayPlanet();
-        await fetchAndDisplayFilms();
-        await getVehicleAndDisplay();
+        await fetchAndDisplayPerson(); await fetchAndDisplayStarships(); await fetchAndDisplayPlanet();
+        await fetchAndDisplayFilms(); await getVehicleAndDisplay();
 
         if (debug_mode) {
             displayDebugStats();
         }
 
     } catch (e) {
-        console.error("Error:", e.message);
-        err_count++;
-    }
-}
+        console.error("Error:", e.message); err_count++;
+    }}
 
 async function fetchAndDisplayPerson() {
     const person1 = await fetchFromSwapi(`people/${lastId}`);
     total_size += JSON.stringify(person1).length;
 
-    console.log("Character:", person1.name);
-    console.log("Height:", person1.height);
-    console.log("Mass:", person1.mass);
-    console.log("Birthday:", person1.birth_year);
+    console.log("Character:", person1.name); console.log("Height:", person1.height);
+    console.log("Mass:", person1.mass); console.log("Birthday:", person1.birth_year);
 
     if (person1.films && person1.films.length > 0) {
         console.log("Appears in", person1.films.length, "films");
-    }
-}
+    }}
 
 async function fetchAndDisplayStarships() {
     const s1 = await fetchFromSwapi("starships/?page=1");
@@ -237,8 +221,7 @@ async function fetchAndDisplayPlanet() {
     const planetInFilm = await findPlanetPopulation();
     if (planetInFilm) {
         console.log("Planet found appearing in film:", planetInFilm.name);
-    }
-}
+    }}
 
 async function fetchAndDisplayFilms() {
     const filmList = await getFilmsAndSearchDate();
@@ -246,34 +229,26 @@ async function fetchAndDisplayFilms() {
     console.log("\nStar Wars Films in chronological order:");
     for (let i = 0; i < filmList.length; i++) {
         const film = filmList[i];
-        console.log(`${i + 1}. ${film.title} (${film.release_date})`);
-        console.log(`   Director: ${film.director}`);
-        console.log(`   Producer: ${film.producer}`);
-        console.log(`   Characters: ${film.characters.length}`);
+        console.log(`${i + 1}. ${film.title} (${film.release_date})`); console.log(`   Director: ${film.director}`);
+        console.log(`   Producer: ${film.producer}`); console.log(`   Characters: ${film.characters.length}`);
         console.log(`   Planets: ${film.planets.length}`);
-    }
-}
+    }}
 
 function displayDebugStats() {
-    console.log("\nStats:");
-    console.log("API Calls:", fetch_count);
-    console.log("Cache Size:", Object.keys(cache).length);
-    console.log("Total Data Size:", total_size, "bytes");
+    console.log("\nStats:"); console.log("API Calls:", fetch_count);
+    console.log("Cache Size:", Object.keys(cache).length); console.log("Total Data Size:", total_size, "bytes");
     console.log("Error Count:", err_count);
 }
 // Print stats
 if (debug_mode) {
-    console.log("\nStats:");
-    console.log("API Calls:", fetch_count || 0);
-    console.log("Cache Size:", cache ? Object.keys(cache).length : 0);
-    console.log("Total Data Size:", total_size || 0, "bytes");
-    console.log("Error Count:", err_count || 0);
+    console.log("\nStats:"); console.log("API Calls:", fetch_count || 0);
+    console.log("Cache Size:", cache ? Object.keys(cache).length : 0); 
+    console.log("Total Data Size:", total_size || 0, "bytes"); console.log("Error Count:", err_count || 0);
 }
 
 // Process command line arguments com validação
 const COMMAND_LINE_ARG_START_INDEX = 2; // Índice onde os argumentos de linha de comando úteis começam
-const FLAG_NO_DEBUG = "--no-debug";
-const FLAG_TIMEOUT = "--timeout";
+const FLAG_NO_DEBUG = "--no-debug"; const FLAG_TIMEOUT = "--timeout";
 const RADIX_DECIMAL = 10; //Base numérica para parseInt (decimal)
 const MIN_TIMEOUT_VALUE = 0; // Valor mínimo permitido para o timeout (maior que 0)
 
@@ -295,105 +270,97 @@ if (args.includes(FLAG_TIMEOUT)) {
             timeout = parsedTimeout;
         } else {
             console.warn("Invalid timeout value; using default.");
-        }
-    }
-}
+        }}}
         
-const statusCodeOk = 200;
-const internalError = 500;
+const statusCodeOk = 200; const internalError = 500;
 const errorNotFound = 404;
 
 const server = http.createServer(async (req, res) => {
     if (req.url === "/" || req.url === "/index.html") {
-        res.writeHead(statusCodeOk, { "Content-Type": "text/html" });
-        res.end(`
-                    <!DOCTYPE html>
-                    <html>
-                        <head>
-                            <title>Star Wars API Demo</title>
-                            <style>
-                                body { font-family: Arial, sans-serif; 
-                                max-width: 800px; 
-                                margin: 0 auto; 
-                                padding: 20px; 
-                                }
-                                h1 { color: #FFE81F; 
-                                background-color: #000; 
-                                padding: 10px; 
-                                }
-                                button { background-color: #FFE81F; 
-                                border: none; 
-                                padding: 10px 20px; c
-                                ursor: pointer; 
-                                }
-                                .footer { margin-top: 50px; 
-                                font-size: 12px; 
-                                color: #666; 
-                                }
-                                pre { background: #f4f4f4; 
-                                padding: 10px; 
-                                border-radius: 5px; 
-                                }
-                            </style>
-                        </head>
-                        <body>
-                            <h1>Star Wars API Demo</h1>
-                            <p>This page demonstrates fetching data from the Star Wars API.</p>
-                            <p>Check your console for the API results.</p>
-                            <button onclick="fetchData()">Fetch Star Wars Data</button>
-                            <div id="results"></div>
-                            <script>
-                                function fetchData() {
-    document.getElementById('results').innerHTML = '<p>Loading data...</p>';
-    
-    fetch('/api')
-        .then(res => res.json())
-        .then(data => {
-            document.getElementById('results').innerHTML = 
-                '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
-        })
-        .catch(err => {
-            document.getElementById('results').innerHTML = 
-                '<p>Error: ' + err.message + '</p>';
-        });
-}
-</script>
-<div class="footer">
-<p>API calls: ${fetch_count} | Cache entries: ${Object.keys(cache).length} | Errors: ${err_count}</p>
-<pre>Debug mode: ${debug_mode ? "ON" : "OFF"} | Timeout: ${timeout}ms</pre>
-</div></body></html>
-                `);
+        handleRootRequest(req, res);
     } else if (req.url === "/api") {
-        try {
-            const result = await person();
-            res.writeHead(statusCodeOk, { "Content-Type": "application/json" });
-            res.end(JSON.stringify({ message: "Success", result }));
-        } catch (err) {
-            res.writeHead(internalError, { "Content-Type": "application/json" });
-            res.end(JSON.stringify({ error: err.message }));
-        }
+        await handleApiRequest(req, res);
     } else if (req.url === "/stats") {
-        res.writeHead(statusCodeOk, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({
-            api_calls: fetch_count,
-            cache_size: Object.keys(cache).length,
-            data_size: total_size,
-            errors: err_count,
-            debug: debug_mode,
-            timeout: timeout
-        }));
+        handleStatsRequest(req, res);
     } else {
         res.writeHead(errorNotFound, { "Content-Type": "text/plain" });
         res.end("Not Found");
-    }
-});
+    }});
 
+function handleRootRequest(req, res) {
+    res.writeHead(statusCodeOk, { "Content-Type": "text/html" });
+    res.end(`
+        <!DOCTYPE html>
+        <html>
+            <head>
+                <title>Star Wars API Demo</title>
+                <style>
+                    body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+                    h1 { color: #FFE81F; background-color: #000; padding: 10px; }
+                    button { background-color: #FFE81F; border: none; padding: 10px 20px; cursor: pointer; }
+                    .footer { margin-top: 50px; font-size: 12px; color: #666; }
+                    pre { background: #f4f4f4; padding: 10px; border-radius: 5px; }
+                </style>
+            </head>
+            <body>
+                <h1>Star Wars API Demo</h1>
+                <p>This page demonstrates fetching data from the Star Wars API.</p>
+                <p>Check your console for the API results.</p>
+                <button onclick="fetchData()">Fetch Star Wars Data</button>
+                <div id="results"></div>
+                <script>
+                    function fetchData() {
+                        document.getElementById('results').innerHTML = '<p>Loading data...</p>';
+                        
+                        fetch('/api')
+                            .then(res => res.json())
+                            .then(data => {
+                                document.getElementById('results').innerHTML = 
+                                    '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                            })
+                            .catch(err => {
+                                document.getElementById('results').innerHTML = 
+                                    '<p>Error: ' + err.message + '</p>';
+                            });
+                    }
+                </script>
+                <div class="footer">
+                    <p>
+  API calls: ${fetch_count} | Cache entries: ${Object.keys(cache).length} | Errors: ${err_count}
+</p>
+                    <pre>Debug mode: ${debug_mode ? "ON" : "OFF"} | Timeout: ${timeout}ms</pre>
+                </div>
+            </body>
+        </html>
+    `);
+}
+
+async function handleApiRequest(req, res) {
+    try {
+        const result = await person();
+        res.writeHead(statusCodeOk, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ message: "Success", result }));
+    } catch (err) {
+        res.writeHead(internalError, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: err.message }));
+    }}
+
+function handleStatsRequest(req, res) {
+    res.writeHead(statusCodeOk, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({
+        api_calls: fetch_count,
+        cache_size: Object.keys(cache).length,
+        data_size: total_size,
+        errors: err_count,
+        debug: debug_mode,
+        timeout: timeout
+    }));
+}
 const DEFAULT_PORT = 3000; // Porta padrão para o servidor
 const PORT = process.env.PORT || DEFAULT_PORT;
 server.listen(PORT, () => {
     console.log(`Server running at http://localhost:${PORT}/`);
     if (debug_mode) {
-        console.log("Debug mode: ON");
-        console.log("Timeout:", timeout, "ms");
+        console.log("Debug mode: ON"); console.log("Timeout:", timeout, "ms");
     }
 });
