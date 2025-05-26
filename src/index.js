@@ -4,73 +4,88 @@
 const http = require("http");
 const https = require("https");
 
+
 const cache = {};
 let debug_mode = true;
 let timeout = 5000;
 let err_count = 0;
 
-function isCached(endpoint){
+function getFromCache(endpoint){
     if (cache[endpoint]) {
-        if (debug_mode) console.log("Using cached data for", endpoint);
+        if (debug_mode) { 
+            console.log("Using cached data for", endpoint);
+        }
         return cache[endpoint];
     }
     return  false;
 }
 
+// const timeout = 5000;
+// const err_count = 0;
+// async function fetchFromSwapi(endpoint) {
+//     const debug_mode = true;
+//     const cache = getFromCache(endpoint); 
+//     if (cache[endpoint]) {
+//         if (debug_mode) console.log(`Using cached data for ${endpoint}`);
+//         return cache[endpoint];
+//     }
+//     return null;
+// }
+
+function storeInCache(endpoint, data) {
+    cache[endpoint] = data;
+    console.log(
+        `Dados para ${endpoint} armazenados no cache. Tamanho do cache: ${Object.keys(cache).length} itens.`
+    ); 
+}
+
 async function fetchFromSwapi(endpoint) {
-
-    const debug_mode = true;
-    const timeout = 5000;
-    let err_count = 0;
-    function isCached(endpoint) {
-        if (cache[endpoint]) {
-            if (debug_mode) console.log(`Using cached data for ${endpoint}`);
-            return cache[endpoint];
-        }
-        return null;
+    const cached = getFromCache(endpoint);
+    const codeError = 400;
+    
+    if (cached) {
+        return cached;
     }
-    async function fetchFromSwapi(endpoint) {
-        const cached = isCached(endpoint);
-        const codeError = 400;
-        if (cached) return cached;
-        const url = `https://swapi.dev/api/${endpoint}`;
-        return new Promise((resolve, reject) => {
-            const req = https.get(url, (res) => {
-                let data = "";
-                if (res.statusCodeOk >= codeError) {
-                    err_count++;
-                    return reject(new Error(`Request failed with status code ${res.statusCodeOk}`));
-                }
-                res.on("data", chunk => data += chunk);
-                res.on("end", () => {
-                    try {
-                        const parsed = JSON.parse(data);
-                        cache[endpoint] = parsed;
-
-                        if (debug_mode) {
-                            console.log(`Fetched and cached: ${endpoint}`);
-                            console.log(`Cache size: ${Object.keys(cache).length}`);
-                        }
-
-                        resolve(parsed);
-                    } catch (err) {
-                        err_count++;
-                        reject(new Error(`JSON parse error for ${endpoint}: ${err.message}`));
+    
+    const url = `https://swapi.dev/api/${endpoint}`;
+    
+    return new Promise((resolve, reject) => {
+        const req = https.get(url, (res) => {
+            let data = "";
+            if (res.statusCodeOk >= codeError) {
+                err_count++;
+                return reject(new Error(`Request failed with status code ${res.statusCodeOk}`));
+            }
+            res.on("data", chunk => data += chunk);
+            res.on("end", () => {
+                try {
+                    const parsedData = JSON.parse(data);
+                    storeInCache(endpoint, parsedData);
+                    // cache[endpoint] = parsed;
+                    resolve(parsedData);
+                    if (debug_mode) {
+                        console.log(`Fetched and cached: ${endpoint}`);
+                        console.log(`Cache size: ${Object.keys(cache).length}`);
                     }
-                });
-            });
-            req.on("error", (err) => {
-                err_count++;
-                reject(new Error(`Network error for ${endpoint}: ${err.message}`));
-            });
-
-            req.setTimeout(timeout, () => {
-                req.abort();
-                err_count++;
-                reject(new Error(`Request timeout after ${timeout}ms for ${endpoint}`));
+                } catch (err) {
+                    err_count++;
+                    reject(new Error(`JSON parse error for ${endpoint}: ${err.message}`));
+                }
             });
         });
-    }}
+        req.on("error", (err) => {
+            err_count++;
+            reject(new Error(`Network error for ${endpoint}: ${err.message}`));
+        });
+
+        req.setTimeout(timeout, () => {
+            req.abort();
+            err_count++;
+            reject(new Error(`Request timeout after ${timeout}ms for ${endpoint}`));
+        });
+    });
+};
+
 
 // Global variables for tracking state
 let lastId = 1;
@@ -134,8 +149,10 @@ async function getFilmsAndSearchDate() {
     return filmList;
 }
 
+const MAX_VEHICLE_ID_TO_FETCH = 4; // Define o número máximo de veículos a serem buscados
+
 async function getVehicleAndDisplay() {
-    if (lastId <= 4) {
+    if (lastId <= MAX_VEHICLE_ID_TO_FETCH) {
         const vehicle = await fetchFromSwapi(`vehicles/${lastId}`);
         total_size += JSON.stringify(vehicle).length;
         console.log("\nFeatured Vehicle:");
@@ -215,16 +232,28 @@ if (debug_mode) {
 }
         
 // Process command line arguments com validação
-const args = process.argv.slice(2);
-if (args.includes("--no-debug")) {
+const COMMAND_LINE_ARG_START_INDEX = 2; // Índice onde os argumentos de linha de comando úteis começam
+const FLAG_NO_DEBUG = "--no-debug";
+const FLAG_TIMEOUT = "--timeout";
+const RADIX_DECIMAL = 10; //Base numérica para parseInt (decimal)
+const MIN_TIMEOUT_VALUE = 0; // Valor mínimo permitido para o timeout (maior que 0)
+
+const args = process.argv.slice(COMMAND_LINE_ARG_START_INDEX);
+
+if (args.includes(FLAG_NO_DEBUG)) {
     debug_mode = false;
 }
-if (args.includes("--timeout")) {
-    const index = args.indexOf("--timeout");
+if (args.includes(FLAG_TIMEOUT)) {
+    const index = args.indexOf(FLAG_TIMEOUT);
+
+    // Verifica se há um valor após a flag --timeout
     if (index < args.length - 1) {
-        const val = parseInt(args[index + 1], 10);
-        if (!isNaN(val) && val > 0) {
-            timeout = val;
+        const timeoutValueStr = args[index + 1];  // Pega a string do valor
+        const parsedTimeout = parseInt(timeoutValueStr, RADIX_DECIMAL);
+        // const val = parseInt(args[index + 1], 10);
+        
+        if (!isNaN(parsedTimeout) && parsedTimeout > MIN_TIMEOUT_VALUE) {
+            timeout = parsedTimeout;
         } else {
             console.warn("Invalid timeout value; using default.");
         }
@@ -301,8 +330,9 @@ const server = http.createServer(async (req, res) => {
         res.end("Not Found");
     }
 });
-        
-const PORT = process.env.PORT || 3000;
+
+const DEFAULT_PORT = 3000; // Porta padrão para o servidor
+const PORT = process.env.PORT || DEFAULT_PORT;
 server.listen(PORT, () => {
     console.log(`Server running at http://localhost:${PORT}/`);
     if (debug_mode) {
