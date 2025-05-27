@@ -17,18 +17,6 @@ function getFromCache(endpoint){
     return  false;
 }
 
-// const timeout = 5000;
-// const err_count = 0;
-// async function fetchFromSwapi(endpoint) {
-//     const debug_mode = true;
-//     const cache = getFromCache(endpoint); 
-//     if (cache[endpoint]) {
-//         if (debug_mode) console.log(`Using cached data for ${endpoint}`);
-//         return cache[endpoint];
-//     }
-//     return null;
-// }
-
 function storeInCache(endpoint, data) {
     cache[endpoint] = data;
     console.log(
