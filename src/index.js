@@ -48,12 +48,16 @@ async function fetchFromSwapi(endpoint) {
     storeInCache(endpoint, data);
     return data;
 }
-function fetchFromApi(endpoint) {
+
+function getRequestBasicData(endpoint) {
     const codeError = 400;
     const url = `https://swapi.dev/api/${endpoint}`;
+    return { codeError, url };
+}
 
+function fetchFromApi(endpoint) {
+    const { codeError, url } = getRequestBasicData(endpoint);
     return new Promise((resolve, reject) => {
-        // eslint-disable-next-line consistent-return
         const req = https.get(url, (res) => {
             let data = "";
 
@@ -61,29 +65,17 @@ function fetchFromApi(endpoint) {
                 err_count++;
                 return reject(new Error(`Request failed with status code ${res.statusCode}`));
             }
-
             res.on("data", chunk => data += chunk);
-
             res.on("end", () => {
-                try {
-                    const parsedData = JSON.parse(data);
-
-                    if (debug_mode) {
-                        console.log(`Fetched and cached: ${endpoint}`);
-                        console.log(`Cache size: ${Object.keys(cache).length}`);
-                    }
-                    resolve(parsedData);
-                } catch (err) {
-                    err_count++;
-                    reject(new Error(`JSON parse error for ${endpoint}: ${err.message}`));
-                }});
+                const teste = errorTreatment(data, endpoint, cache);
+                teste.hasError ? reject(teste.error) : resolve(teste.parsedData);
+            });
+            return null;
         });
-
         req.on("error", (err) => {
             err_count++;
             reject(new Error(`Network error for ${endpoint}: ${err.message}`));
         });
-
         req.setTimeout(timeout, () => {
             req.abort();
             err_count++;
@@ -92,6 +84,20 @@ function fetchFromApi(endpoint) {
     });
 }
 
+
+function errorTreatment(data, endpoint, cache) {
+    try {
+        const parsedData = JSON.parse(data);
+        if (debug_mode) {
+            console.log(`Fetched and cached: ${endpoint}`);
+            console.log(`Cache size: ${Object.keys(cache).length}`);
+        }
+        return { hasError: false, parsedData };
+    } catch (err) {
+        err_count++;
+        const error = new Error(`JSON parse error for ${endpoint}: ${err.message}`);
+        return { hasError: true, error };
+    }}
 
 // Global variables for tracking state
 let lastId = 1; let fetch_count = 0; let total_size = 0;
@@ -141,8 +147,7 @@ function findLargePopulatedPlanet(planets) {
         const planet = planets[i];
         if (planetMeetsCriteria(planet, minPopulation, minDiameter)) {
             return planet;
-        }
-    }
+        }}
     return null;
 }
 
@@ -286,10 +291,8 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(errorNotFound, { "Content-Type": "text/plain" });
         res.end("Not Found");
     }});
-
-function handleRootRequest(req, res) {
-    res.writeHead(statusCodeOk, { "Content-Type": "text/html" });
-    res.end(`
+    
+const htmlPage = `
         <!DOCTYPE html>
         <html>
             <head>
@@ -310,8 +313,7 @@ function handleRootRequest(req, res) {
                 <div id="results"></div>
                 <script>
                     function fetchData() {
-                        document.getElementById('results').innerHTML = '<p>Loading data...</p>';
-                        
+                        document.getElementById('results').innerHTML = '<p>Loading data...</p>';                        
                         fetch('/api')
                             .then(res => res.json())
                             .then(data => {
@@ -332,7 +334,11 @@ function handleRootRequest(req, res) {
                 </div>
             </body>
         </html>
-    `);
+`;
+
+function handleRootRequest(req, res) {
+    res.writeHead(statusCodeOk, { "Content-Type": "text/html" });
+    res.end(htmlPage);
 }
 
 async function handleApiRequest(req, res) {
@@ -362,5 +368,4 @@ server.listen(PORT, () => {
     console.log(`Server running at http://localhost:${PORT}/`);
     if (debug_mode) {
         console.log("Debug mode: ON"); console.log("Timeout:", timeout, "ms");
-    }
-});
+    }});
